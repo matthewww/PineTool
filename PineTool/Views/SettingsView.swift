@@ -14,6 +14,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("keep-awake") var keepAwake = true
+    @AppStorage("sleepTimeout") private var sleepTimeoutRawValue: Int = SleepTimeout.off.rawValue
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -22,6 +23,17 @@ struct SettingsView: View {
                 Section {
                     Toggle("Keep Display Awake", isOn: $keepAwake)
                         .tint(.accentColor)
+                }
+
+                Section("Sleep Mode") {
+                    Picker("Sleep Timeout", selection: $sleepTimeoutRawValue) {
+                        ForEach(SleepTimeout.allCases) { timeout in
+                            Text(timeout.description).tag(timeout.rawValue)
+                        }
+                    }
+                    Text("Interval before ‘sleep mode’ starts (s=seconds | ∞ = never)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
                 Section {
