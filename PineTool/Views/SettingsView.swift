@@ -31,7 +31,7 @@ struct SettingsView: View {
                             Text(timeout.description).tag(timeout.rawValue)
                         }
                     }
-                    Text("Interval before ‘sleep mode’ starts (s=seconds | ∞ = never)")
+                    Text("Interval before ‘sleep mode’ starts (min=minutes | ∞ = never)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

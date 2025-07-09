@@ -36,7 +36,9 @@ class PinecilManager: NSObject, ObservableObject {
     private let bulkDataServiceUUID = CBUUID(string: "9eae1000-9d0d-48c5-aa55-33e27f9bc533")
     private let settingsServiceUUID = CBUUID(string: "f6d80000-5a10-4eba-aa55-33e27f9bc533")
     private var setpointCharacteristic: CBCharacteristic?
-    private var setpointCharacteristicUUID = CBUUID(string: "f6d70000-5a10-4eba-aa55-33e27f9bc533")
+    private let setpointCharacteristicUUID = CBUUID(string: "f6d70000-5a10-4eba-aa55-33e27f9bc533") // For Temperature Setpoint
+    private var sleepTimeCharacteristic: CBCharacteristic?
+    private let sleepTimeCharacteristicUUID = CBUUID(string: "f6d70002-5a10-4eba-aa55-33e27f9bc533") // For SleepTime (Setting 2)
 
     private let centralManager: CBCentralManager
     private var pollTimer: Timer?
@@ -90,6 +92,27 @@ class PinecilManager: NSObject, ObservableObject {
                 for: setpointCharacteristic,
                 type: .withoutResponse
             )
+        }
+    }
+
+    func writeSleepTimeout(_ timeout: SleepTimeout) {
+        guard let sleepTimeCharacteristic else {
+            print("Error: SleepTime characteristic not found.")
+            return
+        }
+
+        if case .connected(let peripheral) = state {
+            var timeoutValue = timeout.minutesForDevice.littleEndian
+            let data = Data(bytes: &timeoutValue, count: MemoryLayout<UInt16>.size)
+
+            print("Writing SleepTimeout: \(timeout.description) (\(timeout.minutesForDevice) minutes) -> \(data.hexEncodedString()) to Pinecil")
+            peripheral.writeValue(
+                data,
+                for: sleepTimeCharacteristic,
+                type: .withResponse // Or .withoutResponse, depending on IronOS characteristic properties. .withResponse is safer to ensure it's written.
+            )
+        } else {
+            print("Error: Not connected to a peripheral to write SleepTimeout.")
         }
     }
 
@@ -219,6 +242,18 @@ extension PinecilManager: CBPeripheralDelegate {
             if characteristic.uuid == setpointCharacteristicUUID {
                 self.setpointCharacteristic = characteristic
             }
+
+            if characteristic.uuid == sleepTimeCharacteristicUUID {
+                self.sleepTimeCharacteristic = characteristic
+                print("Discovered SleepTime Characteristic")
+            }
         }
+    }
+}
+
+// Helper extension for debugging
+extension Data {
+    func hexEncodedString() -> String {
+        return map { String(format: "%02hhx", $0) }.joined()
     }
 }

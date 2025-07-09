@@ -15,40 +15,55 @@ import SwiftUI
 @main
 struct PineToolApp: App {
     @AppStorage("keep-awake") var keepAwake = true
-    @AppStorage("sleepTimeout") private var sleepTimeoutRawValue: Int = SleepTimeout.off.rawValue
+    // Default to .off (0 minutes) if not set previously
+    @AppStorage("sleepTimeout") var sleepTimeoutRawValue: Int = SleepTimeout.off.rawValue
 
     var sleepTimeout: SleepTimeout {
         get { SleepTimeout(rawValue: sleepTimeoutRawValue) ?? .off }
         set { sleepTimeoutRawValue = newValue.rawValue }
     }
 
+    // Access to PinecilManager
+    // We need to ensure PinecilManager is available here to call writeSleepTimeout
+    // One way is to instantiate it if ContentView isn't up yet, or pass it around.
+    // For now, let's assume it will be accessible via environment or direct instantiation when needed.
+    // This part might need refinement based on how PinecilManager is typically accessed for writes.
+
     var body: some Scene {
+        let pinecilManager = PinecilManager() // Instantiate for use in this scope
         WindowGroup {
             ContentView()
-                .environmentObject(PinecilManager())
+                .environmentObject(pinecilManager)
                 .onAppear {
-                    self.applySleepSettings()
+                    self.applyAppIdleSettings()
                 }
                 .onChange(of: keepAwake) { _ in
-                    self.applySleepSettings()
+                    self.applyAppIdleSettings()
                 }
-                .onChange(of: sleepTimeoutRawValue) { _ in
-                    self.applySleepSettings()
+                .onChange(of: sleepTimeoutRawValue) { newRawValue in
+                    self.applyAppIdleSettings()
+                    let newTimeout = SleepTimeout(rawValue: newRawValue) ?? .off
+                    // Check if PinecilManager is connected before writing
+                    if case .connected = pinecilManager.state {
+                        pinecilManager.writeSleepTimeout(newTimeout)
+                    } else {
+                        print("Pinecil not connected. SleepTimeout change will be applied locally and sent upon next connection (if implemented).")
+                        // Future enhancement: Could queue this write for when connection is established.
+                    }
                 }
         }
     }
 
-    func applySleepSettings() {
-        if sleepTimeout == .off {
+    // Renamed to reflect it's about the app's idle timer, not the device's sleep settings directly
+    func applyAppIdleSettings() {
+        let currentSleepTimeout = SleepTimeout(rawValue: sleepTimeoutRawValue) ?? .off
+        if currentSleepTimeout == .off {
+            // If Pinecil sleep is off, app's keepAwake setting dictates screen lock
             UIApplication.shared.isIdleTimerDisabled = keepAwake
-        } else if sleepTimeout == .infinite {
-            UIApplication.shared.isIdleTimerDisabled = true
         } else {
-            // Placeholder for timer logic
-            // For now, we'll just disable idle timer immediately if a timeout is set.
-            // In a real implementation, a timer would be started here.
+            // If Pinecil has any sleep timeout (including infinite), keep app display awake
+            // so user can see Pinecil status until Pinecil itself sleeps.
             UIApplication.shared.isIdleTimerDisabled = true
-            print("Sleep timeout set to \(sleepTimeout.description). Timer logic to be implemented.")
         }
     }
 }

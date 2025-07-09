@@ -13,16 +13,30 @@
 import Foundation
 
 enum SleepTimeout: Int, CaseIterable, Identifiable {
-    case off = 0, s10 = 1, s20 = 2, s30 = 3, s40 = 4, infinite = 5
+    case off = 0
+    case m1 = 1
+    case m2 = 2
+    case m5 = 5
+    case m10 = 10
+    case m30 = 30
+    case infinite = 999 // Using 999 for infinite as per discussion
+
     var id: Int { rawValue }
+
     var description: String {
         switch self {
         case .off: return "Off"
-        case .s10: return "10s"
-        case .s20: return "20s"
-        case .s30: return "30s"
-        case .s40: return "40s"
-        case .infinite: return "∞"
+        case .m1: return "1 min"
+        case .m2: return "2 mins"
+        case .m5: return "5 mins"
+        case .m10: return "10 mins"
+        case .m30: return "30 mins"
+        case .infinite: return "Infinite (∞)" // Mapped to 999 minutes
         }
+    }
+
+    // Helper to explicitly show what value is sent to device
+    var minutesForDevice: UInt16 {
+        return UInt16(self.rawValue)
     }
 }
